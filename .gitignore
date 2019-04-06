@@ -38,3 +38,4 @@
 
 # Secrets
 src/secrets.h
+.vscode/settings.json
