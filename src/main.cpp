@@ -10,7 +10,8 @@
 
 #define Serial if(DEBUG)Serial 
 
-// ESP Deep sleep times are specified in microseconds
+// 1 minute
+// Deep sleep times are specified in microseconds
 #define DUTY_INTERVAL 60000
 
 void setupWifi()
@@ -56,29 +57,10 @@ void setup()
   initSensor();
 }
 
-  // while (WiFi.status() == WL_CONNECTED)
-  // {
-  //   delay(50);
-  //   Serial.print(".");
-  // }
-  // ESP.deepSleep(60e6, WAKE_RF_DISABLED);
-
-// Thanks to OppoverBakke for power consumption optimizations
+// Thanks to OppoverBakke for power consumption optimization research
 // https://www.bakke.online/index.php/2017/05/22/reducing-wifi-power-consumption-on-esp8266-part-3/
-// void shutdownRadio()
-// {
-//   WiFi.mode(WIFI_OFF);
-//   WiFi.forceSleepBegin();
-//   delay(1);
-// }
-
 void loop() 
 {
   connectAndPublish();
-  // if (WiFi.isConnected()) {
-  //   Serial.write('.');
-  //   delay(100);
-  // }
-  //delay(DUTY_INTERVAL);
   ESP.deepSleep(DUTY_INTERVAL * 1000);
 }
