@@ -32,8 +32,10 @@
 *.app
 .pioenvs
 .piolibdeps
-.vscode/*.*
 
 # Secrets
 src/secrets.h
 .vscode/settings.json
+lib/*
+.vscode/*
+
