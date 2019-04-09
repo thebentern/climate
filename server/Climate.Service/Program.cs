@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using AdysTech.InfluxDB.Client.Net;
 using MQTTnet;
 using MQTTnet.Client;
 using Newtonsoft.Json;
@@ -11,7 +13,12 @@ namespace Climate.Service
 {
   class Program
   {
+    public static string INFLUX_DB = DotNetEnv.Env.GetString("INFLUX_DB");
+    public static string PWS_ID = DotNetEnv.Env.GetString("PWS_ID");
+    public static string PWS_KEY = DotNetEnv.Env.GetString("PWS_KEY");
+
     private static readonly HttpClient client = new HttpClient();
+    private static readonly AutoResetEvent closing = new AutoResetEvent(false);
 
     static async Task Main(string[] args)
     {
@@ -19,18 +26,45 @@ namespace Climate.Service
       IMqttClient mqttClient = CreateMqttClient();
       IMqttClientOptions options = CreateMqttClientOptions();
 
-
       SetupConnection(mqttClient);
       SetupDisconnection(mqttClient, options);
       mqttClient.ApplicationMessageReceived += OnMessageReceived;
       await mqttClient.ConnectAsync(options);
-      Console.ReadKey();
+      closing.WaitOne();
     }
 
     private static void ReportConditionsWeatherUnderground(string jsonData)
     {
-      var weatherStationUrl = BuildWeatherStationUrl(jsonData);
+      var report = JsonConvert.DeserializeObject<WeatherStationReport>(jsonData);
+      var weatherStationUrl = BuildWeatherStationUrl(report);
       UploadReportWeatherUnderground(weatherStationUrl);
+      RecordInfluxDbMetric(report);
+    }
+
+    private static void RecordInfluxDbMetric(WeatherStationReport report)
+    {
+      Console.WriteLine("Recording metric to influx db");
+      var client = new InfluxDBClient("http://influxdb:8086", "admin", "admin");
+      var metric = new InfluxDatapoint<InfluxValueField>()
+      {
+        UtcTimestamp = DateTime.UtcNow,
+        Precision = TimePrecision.Seconds,
+        MeasurementName = "weather-station"
+      };
+
+      foreach (var property in report.GetType().GetProperties()) 
+      {
+        double fieldValue;
+        var value = property.GetValue(report);
+        if (value is string)
+          fieldValue = Double.Parse(value.ToString());
+        else
+          fieldValue = (double)value;
+
+        metric.Fields.Add(property.Name, new InfluxValueField(fieldValue));
+      }
+    
+      bool success = client.PostPointAsync(INFLUX_DB, metric).Result;
     }
 
     private static void UploadReportWeatherUnderground(string url)
@@ -46,22 +80,25 @@ namespace Climate.Service
       Console.Write(response);
     }
 
-    private static string BuildWeatherStationUrl(string jsonData)
+    private static string BuildWeatherStationUrl(WeatherStationReport report)
     {
       var builder = new StringBuilder("https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php?");
-      builder.Append($"ID={DotNetEnv.Env.GetString("PWS_ID")}");
-      builder.Append($"&PASSWORD={DotNetEnv.Env.GetString("PWS_KEY")}");
+      builder.Append($"ID={PWS_ID}");
+      builder.Append($"&PASSWORD={PWS_KEY}");
       builder.Append("&action=updateraw");
       builder.Append("&dateutc=now");
 
-      var report = JsonConvert.DeserializeObject<WeatherStationReport>(jsonData);
-
       if (report.temperature != null)
         builder.Append($"&tempf={report.temperature}");
+        
       if (report.humidity != null)
         builder.Append($"&humidity={report.humidity}");
+
       if (report.barometricPressure != null)
-        builder.Append($"&baromin={report.barometricPressure}");
+        builder.Append($"&baromin={report.barometricPressureInHg}");
+
+      if (report.temperature != null && report.humidity != null)
+        builder.Append($"&dewptf={report.dewpoint}");
 
       return builder.ToString();
     }

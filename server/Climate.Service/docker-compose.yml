@@ -1,0 +1,39 @@
+version: '3.2'
+services:
+  weather-station-reporter:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    image: result/latest
+    links:
+      - influxdb
+  influxdb:
+    build: influxdb
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+      - "8086:8086"
+      - "8090:8090"
+    env_file: .env
+    volumes:
+      # Data persistency
+      # sudo mkdir -p /srv/docker/influxdb/data
+      - /srv/docker/influxdb/data:/var/lib/influxdb
+  grafana:
+    build: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file: .env
+    user: '0'
+    links:
+      - influxdb
+    volumes:
+      # Data persistency
+      # sudo mkdir -p /srv/docker/grafana/data; chown 472:472 /srv/docker/grafana/data
+      - /srv/docker/grafana/data:/var/lib/grafana
+
+volumes:
+  grafana_data: {}
+  influxdb_data: {}
