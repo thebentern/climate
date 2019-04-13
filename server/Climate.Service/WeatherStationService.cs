@@ -20,7 +20,7 @@ public class WeatherStationService : IHostedService, IDisposable
 
   public static string INFLUX_DB = DotNetEnv.Env.GetString("INFLUX_DB");
 
-  private static readonly HttpClient WebClient = new HttpClient();
+  private readonly HttpClient WebClient = new HttpClient();
   private static IAsyncPolicy TimeoutPolicy = Policy
     .TimeoutAsync(5);
 
@@ -44,10 +44,10 @@ public class WeatherStationService : IHostedService, IDisposable
     await mqttClient.ConnectAsync(options);
   }
   
-  private static async Task UploadReportWeatherUnderground(string url)
+  private async Task UploadReportWeatherUnderground(string url)
   {
-    Console.WriteLine("Reporting conditions to Weather Underground...");
-    Console.WriteLine($"GET: {url}");
+    _logger.LogInformation("Reporting conditions to Weather Underground...");
+    _logger.LogInformation($"GET: {url}");
 
     WebClient.DefaultRequestHeaders.Accept.Clear();
     WebClient.DefaultRequestHeaders.Add("User-Agent", ".NET Climate Service Reporter");
@@ -58,21 +58,21 @@ public class WeatherStationService : IHostedService, IDisposable
     Console.Write(response);
   }
 
-  private static void OnMessageReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
+  private void OnMessageReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
   {
       string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-      Console.WriteLine($"Received message on topic: {e.ApplicationMessage.Topic}{Environment.NewLine}");
-      Console.WriteLine($"Payload = {payload}");
-      Console.WriteLine();
+      _logger.LogInformation($"Received message on topic: {e.ApplicationMessage.Topic}{Environment.NewLine}");
+      _logger.LogInformation($"Payload = {payload}");
+      _logger.LogInformation();
 
       AsyncContext.Run(async () => await ReportConditionsWeatherUnderground(payload));
   }
 
-  private static void SetupDisconnection(IMqttClient mqttClient, IMqttClientOptions options)
+  private  void SetupDisconnection(IMqttClient mqttClient, IMqttClientOptions options)
   {
     mqttClient.Disconnected += async (s, e) =>
     {
-      Console.WriteLine("Disconnected to server");
+      _logger.LogInformation("Disconnected to server");
       await Task.Delay(TimeSpan.FromSeconds(5));
 
       try
@@ -81,21 +81,21 @@ public class WeatherStationService : IHostedService, IDisposable
       }
       catch
       {
-        Console.WriteLine("Reconnecting failed");
+        _logger.LogInformation("Reconnecting failed");
       }
     };
   }
 
-  private static void SetupConnection(IMqttClient mqttClient)
+  private void SetupConnection(IMqttClient mqttClient)
   {
     mqttClient.Connected += async (s, e) =>
     {
       var topic = DotNetEnv.Env.GetString("MQTT_TOPIC");
-      Console.WriteLine("Connected to server");
+      _logger.LogInformation("Connected to server");
 
       await mqttClient.SubscribeAsync(new TopicFilterBuilder().WithTopic(topic).Build());
 
-      Console.WriteLine($"Subscribed to topic: {topic}");
+      _logger.LogInformation($"Subscribed to topic: {topic}");
     };
   }
 
@@ -112,7 +112,7 @@ public class WeatherStationService : IHostedService, IDisposable
     return factory.CreateMqttClient();
   }
   
-  private static async Task ReportConditionsWeatherUnderground(string jsonData)
+  private async Task ReportConditionsWeatherUnderground(string jsonData)
   {
     var report = JsonConvert.DeserializeObject<WeatherStationReport>(jsonData);
     await TimeoutPolicy.ExecuteAsync(async () =>
@@ -125,9 +125,9 @@ public class WeatherStationService : IHostedService, IDisposable
     });
   }
 
-  private static async Task RecordInfluxDbMetric(WeatherStationReport report)
+  private async Task RecordInfluxDbMetric(WeatherStationReport report)
   {
-    Console.WriteLine("Recording metric to influx db");
+    _logger.LogInformation("Recording metric to influx db");
     var client = new InfluxDBClient("http://influxdb:8086", "admin", "admin");
     var metric = new InfluxDatapoint<InfluxValueField>()
     {
