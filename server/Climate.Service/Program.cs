@@ -20,6 +20,9 @@ namespace Climate.Service
     private static readonly HttpClient client = new HttpClient();
     private static readonly AutoResetEvent closing = new AutoResetEvent(false);
 
+    private static IAsyncPolicy TimeoutPolicy = Policy
+      .TimeoutAsync(5);
+
     private static AsyncRetryPolicy RetryPolicy = Policy
       .Handle<Exception>()
       .WaitAndRetryAsync(new[] { TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4),  TimeSpan.FromSeconds(8) });
@@ -40,11 +43,11 @@ namespace Climate.Service
     private static async Task ReportConditionsWeatherUnderground(string jsonData)
     {
       var report = JsonConvert.DeserializeObject<WeatherStationReport>(jsonData);
-      await RetryPolicy.ExecuteAsync(async () =>
+      await Policy.WrapAsync(TimeoutPolicy, RetryPolicy).ExecuteAsync(async () =>
       {
         await UploadReportWeatherUnderground(report.BuildWeatherStationUrl());
       });
-      await RetryPolicy.ExecuteAsync(async () =>
+      await Policy.WrapAsync(TimeoutPolicy, RetryPolicy).ExecuteAsync(async () =>
       {
         await RecordInfluxDbMetric(report);
       });
