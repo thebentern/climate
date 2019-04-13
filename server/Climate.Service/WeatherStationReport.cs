@@ -1,9 +1,12 @@
 using System;
+using System.Text;
 
 namespace Climate.Service
 {
   public class WeatherStationReport
   {
+    public static string PWS_ID = DotNetEnv.Env.GetString("PWS_ID");
+    public static string PWS_KEY = DotNetEnv.Env.GetString("PWS_KEY");
     private const double PSI_TO_INHG_COEFFICIENT = 2.03602;
 
     public string voltage { get; set; }
@@ -23,6 +26,29 @@ namespace Climate.Service
       double value = result * (9.0/5.0);
       
       return value + 32.0;
+    }
+
+    public string BuildWeatherStationUrl()
+    {
+      var builder = new StringBuilder("https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php?");
+      builder.Append($"ID={PWS_ID}");
+      builder.Append($"&PASSWORD={PWS_KEY}");
+      builder.Append("&action=updateraw");
+      builder.Append("&dateutc=now");
+
+      if (this.temperature != null)
+        builder.Append($"&tempf={this.temperature}");
+        
+      if (this.humidity != null)
+        builder.Append($"&humidity={this.humidity}");
+
+      if (this.barometricPressure != null)
+        builder.Append($"&baromin={this.barometricPressureInHg}");
+
+      if (this.temperature != null && this.humidity != null)
+        builder.Append($"&dewptf={this.dewpoint}");
+
+      return builder.ToString();
     }
   }
 }

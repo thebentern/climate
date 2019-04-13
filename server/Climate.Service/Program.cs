@@ -8,17 +8,21 @@ using MQTTnet;
 using MQTTnet.Client;
 using Newtonsoft.Json;
 using Nito.AsyncEx;
+using Polly;
+using Polly.Retry;
 
 namespace Climate.Service
 {
   class Program
   {
     public static string INFLUX_DB = DotNetEnv.Env.GetString("INFLUX_DB");
-    public static string PWS_ID = DotNetEnv.Env.GetString("PWS_ID");
-    public static string PWS_KEY = DotNetEnv.Env.GetString("PWS_KEY");
 
     private static readonly HttpClient client = new HttpClient();
     private static readonly AutoResetEvent closing = new AutoResetEvent(false);
+
+    private static AsyncRetryPolicy RetryPolicy = Policy
+      .Handle<Exception>()
+      .WaitAndRetryAsync(new[] { TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4),  TimeSpan.FromSeconds(8) });
 
     static async Task Main(string[] args)
     {
@@ -33,15 +37,20 @@ namespace Climate.Service
       closing.WaitOne();
     }
 
-    private static void ReportConditionsWeatherUnderground(string jsonData)
+    private static async Task ReportConditionsWeatherUnderground(string jsonData)
     {
       var report = JsonConvert.DeserializeObject<WeatherStationReport>(jsonData);
-      var weatherStationUrl = BuildWeatherStationUrl(report);
-      UploadReportWeatherUnderground(weatherStationUrl);
-      RecordInfluxDbMetric(report);
+      await RetryPolicy.ExecuteAsync(async () =>
+      {
+        await UploadReportWeatherUnderground(report.BuildWeatherStationUrl());
+      });
+      await RetryPolicy.ExecuteAsync(async () =>
+      {
+        await RecordInfluxDbMetric(report);
+      });
     }
 
-    private static void RecordInfluxDbMetric(WeatherStationReport report)
+    private static async Task RecordInfluxDbMetric(WeatherStationReport report)
     {
       Console.WriteLine("Recording metric to influx db");
       var client = new InfluxDBClient("http://influxdb:8086", "admin", "admin");
@@ -64,43 +73,21 @@ namespace Climate.Service
         metric.Fields.Add(property.Name, new InfluxValueField(fieldValue));
       }
     
-      bool success = client.PostPointAsync(INFLUX_DB, metric).Result;
+      bool success = await client.PostPointAsync(INFLUX_DB, metric);
     }
 
-    private static void UploadReportWeatherUnderground(string url)
+    private static async Task UploadReportWeatherUnderground(string url)
     {
       Console.WriteLine("Reporting conditions to Weather Underground...");
       Console.WriteLine($"GET: {url}");
 
       client.DefaultRequestHeaders.Accept.Clear();
       client.DefaultRequestHeaders.Add("User-Agent", ".NET Climate Service Reporter");
-
-      var response = client.GetStringAsync(url).Result;
+      client.Timeout = TimeSpan.FromSeconds(10);
+      
+      var response = await client.GetStringAsync(url);
 
       Console.Write(response);
-    }
-
-    private static string BuildWeatherStationUrl(WeatherStationReport report)
-    {
-      var builder = new StringBuilder("https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php?");
-      builder.Append($"ID={PWS_ID}");
-      builder.Append($"&PASSWORD={PWS_KEY}");
-      builder.Append("&action=updateraw");
-      builder.Append("&dateutc=now");
-
-      if (report.temperature != null)
-        builder.Append($"&tempf={report.temperature}");
-        
-      if (report.humidity != null)
-        builder.Append($"&humidity={report.humidity}");
-
-      if (report.barometricPressure != null)
-        builder.Append($"&baromin={report.barometricPressureInHg}");
-
-      if (report.temperature != null && report.humidity != null)
-        builder.Append($"&dewptf={report.dewpoint}");
-
-      return builder.ToString();
     }
 
     private static void OnMessageReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
@@ -110,7 +97,7 @@ namespace Climate.Service
         Console.WriteLine($"Payload = {payload}");
         Console.WriteLine();
 
-        ReportConditionsWeatherUnderground(payload);
+        AsyncContext.Run(async () => await ReportConditionsWeatherUnderground(payload));
     }
 
     private static void SetupDisconnection(IMqttClient mqttClient, IMqttClientOptions options)
