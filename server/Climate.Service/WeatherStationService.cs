@@ -63,7 +63,7 @@ public class WeatherStationService : IHostedService, IDisposable
       string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
       _logger.LogInformation($"Received message on topic: {e.ApplicationMessage.Topic}{Environment.NewLine}");
       _logger.LogInformation($"Payload = {payload}");
-      _logger.LogInformation();
+      _logger.LogInformation(Environment.NewLine);
 
       AsyncContext.Run(async () => await ReportConditionsWeatherUnderground(payload));
   }
