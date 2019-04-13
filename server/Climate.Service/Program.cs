@@ -43,11 +43,11 @@ namespace Climate.Service
     private static async Task ReportConditionsWeatherUnderground(string jsonData)
     {
       var report = JsonConvert.DeserializeObject<WeatherStationReport>(jsonData);
-      await Policy.WrapAsync(TimeoutPolicy, RetryPolicy).ExecuteAsync(async () =>
+      await TimeoutPolicy.ExecuteAsync(async () =>
       {
         await UploadReportWeatherUnderground(report.BuildWeatherStationUrl());
       });
-      await Policy.WrapAsync(TimeoutPolicy, RetryPolicy).ExecuteAsync(async () =>
+      await TimeoutPolicy.ExecuteAsync(async () =>
       {
         await RecordInfluxDbMetric(report);
       });
