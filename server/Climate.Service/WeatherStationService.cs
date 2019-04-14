@@ -62,7 +62,7 @@ public class WeatherStationService : IHostedService, IDisposable
     WebClient.DefaultRequestHeaders.Add("User-Agent", ".NET Climate Service Reporter");
     WebClient.Timeout = TimeSpan.FromSeconds(10);
     
-    var response = await WebClient.GetStringAsync(url);
+    var response = await WebClient.GetStringAsync(url).ConfigureAwait(false);
 
     Console.Write(response);
   }
