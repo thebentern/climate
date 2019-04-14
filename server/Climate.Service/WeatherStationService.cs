@@ -64,7 +64,7 @@ public class WeatherStationService : IHostedService, IDisposable
     
     var response = await WebClient.GetStringAsync(url).ConfigureAwait(false);
 
-    Console.Write(response);
+    _logger.LogInformation(response);
   }
 
   private void OnMessageReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
