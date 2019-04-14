@@ -20,7 +20,6 @@ public class WeatherStationService : IHostedService, IDisposable
 
   public static string INFLUX_DB = DotNetEnv.Env.GetString("INFLUX_DB");
 
-  private readonly HttpClient WebClient = new HttpClient();
   private static IAsyncPolicy TimeoutPolicy = Policy
     .TimeoutAsync(5);
 
@@ -58,13 +57,15 @@ public class WeatherStationService : IHostedService, IDisposable
     _logger.LogInformation("Reporting conditions to Weather Underground...");
     _logger.LogInformation($"GET: {url}");
 
-    WebClient.DefaultRequestHeaders.Accept.Clear();
-    WebClient.DefaultRequestHeaders.Add("User-Agent", ".NET Climate Service Reporter");
-    WebClient.Timeout = TimeSpan.FromSeconds(10);
+    using (var client = new HttpClient())
+    {
+      client.DefaultRequestHeaders.Accept.Clear();
+      client.DefaultRequestHeaders.Add("User-Agent", ".NET Climate Service Reporter");
+      client.Timeout = TimeSpan.FromSeconds(10);
     
-    var response = await WebClient.GetStringAsync(url).ConfigureAwait(false);
-
-    _logger.LogInformation(response);
+      var response = await client.GetStringAsync(url).ConfigureAwait(false);
+      _logger.LogInformation(response);
+    }
   }
 
   private void OnMessageReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
