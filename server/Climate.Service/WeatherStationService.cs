@@ -28,7 +28,8 @@ public class WeatherStationService : IHostedService, IDisposable
     .Handle<Exception>()
     .WaitAndRetryAsync(new[] { TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4),  TimeSpan.FromSeconds(8) });
 
-  public WeatherStationService(ILogger<WeatherStationService> logger) => _logger = logger;
+  public WeatherStationService(ILogger<WeatherStationService> logger) => 
+    _logger = logger;
 
   public async Task StartAsync(CancellationToken cancellationToken)
   {
@@ -43,7 +44,15 @@ public class WeatherStationService : IHostedService, IDisposable
     mqttClient.ApplicationMessageReceived += OnMessageReceived;
     await mqttClient.ConnectAsync(options);
   }
-  
+  public Task StopAsync(CancellationToken cancellationToken)
+  {
+    _logger.LogInformation($"{nameof(WeatherStationService)} is stopping.");
+
+    return Task.CompletedTask;
+  }
+
+  public void Dispose() => WebClient?.Dispose();
+
   private async Task UploadReportWeatherUnderground(string url)
   {
     _logger.LogInformation("Reporting conditions to Weather Underground...");
@@ -60,12 +69,12 @@ public class WeatherStationService : IHostedService, IDisposable
 
   private void OnMessageReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
   {
-      string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-      _logger.LogInformation($"Received message on topic: {e.ApplicationMessage.Topic}{Environment.NewLine}");
-      _logger.LogInformation($"Payload = {payload}");
-      _logger.LogInformation(Environment.NewLine);
+    string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+    _logger.LogInformation($"Received message on topic: {e.ApplicationMessage.Topic}{Environment.NewLine}");
+    _logger.LogInformation($"Payload = {payload}");
+    _logger.LogInformation(Environment.NewLine);
 
-      AsyncContext.Run(async () => await ReportConditionsWeatherUnderground(payload));
+    AsyncContext.Run(async () => await ReportConditionsWeatherUnderground(payload));
   }
 
   private  void SetupDisconnection(IMqttClient mqttClient, IMqttClientOptions options)
@@ -150,18 +159,4 @@ public class WeatherStationService : IHostedService, IDisposable
   
     bool success = await client.PostPointAsync(INFLUX_DB, metric);
   }
-
-  private void DoWork(object state)
-  {
-      _logger.LogInformation($"{nameof(WeatherStationService)} is working.");
-  }
-
-  public Task StopAsync(CancellationToken cancellationToken)
-  {
-    _logger.LogInformation($"{nameof(WeatherStationService)} is stopping.");
-
-    return Task.CompletedTask;
-  }
-
-  public void Dispose() => WebClient?.Dispose();
 }
