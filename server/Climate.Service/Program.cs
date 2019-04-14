@@ -13,23 +13,16 @@ namespace Climate.Service
     static async Task Main(string[] args)
     {
         var hostBuilder = new HostBuilder()
-        // .ConfigureAppConfiguration((hostingContext, config) =>
-        // {
-        //   config.AddEnvironmentVariables();
-
-        //   if (args != null)
-        //     config.AddCommandLine(args);
-        // })
-        .ConfigureServices((hostContext, services) =>
-        {
-          services
-            .AddLogging(loggingBuilder =>
-            {
-              loggingBuilder.AddConsole();
-              loggingBuilder.AddFilter(f => f >= LogLevel.Information);
-            });
-          services.AddSingleton<IHostedService, WeatherStationService>();
-        });
+          .ConfigureServices((hostContext, services) =>
+          {
+            services
+              .AddLogging(loggingBuilder =>
+              {
+                loggingBuilder.AddConsole();
+                loggingBuilder.AddFilter(f => f >= LogLevel.Information);
+              });
+            services.AddSingleton<IHostedService, WeatherStationService>();
+          });
         await hostBuilder.RunConsoleAsync();
     }
   }
