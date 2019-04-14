@@ -50,7 +50,7 @@ public class WeatherStationService : IHostedService, IDisposable
     return Task.CompletedTask;
   }
 
-  public void Dispose() => WebClient?.Dispose();
+  public void Dispose() {}
 
   private async Task UploadReportWeatherUnderground(string url)
   {
