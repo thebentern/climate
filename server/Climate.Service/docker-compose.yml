@@ -30,7 +30,6 @@ services:
     volumes:
       - /srv/docker/grafana/data:/var/lib/grafana
   mosquitto:
-    build: mqtt
     restart: unless-stopped
     ports:
         - '1883:1883'
@@ -40,7 +39,7 @@ services:
         - '/srv/mqtt/log:/mqtt/log'
         - '/srv/mqtt/data/:/mqtt/data/'
     image: toke/mosquitto
-    
+
 volumes:
   grafana_data: {}
   influxdb_data: {}
