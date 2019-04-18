@@ -6,8 +6,6 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     image: result/latest
-    links:
-      - influxdb
   influxdb:
     build: influxdb
     restart: unless-stopped
@@ -17,7 +15,7 @@ services:
       - "8090:8090"
     env_file: .env
     volumes:
-      - /srv/docker/influxdb/data:/var/lib/influxdb
+      - /srv/docker/influxdb/data:/var/lib/
   grafana:
     build: grafana
     restart: unless-stopped
@@ -25,8 +23,6 @@ services:
       - "3000:3000"
     env_file: .env
     user: '0'
-    links:
-      - influxdb
     volumes:
       - /srv/docker/grafana/data:/var/lib/grafana
   mosquitto:
@@ -34,10 +30,10 @@ services:
     ports:
         - '1883:1883'
         - '9001:9001'
-    volumes:
-        - '/srv/mqtt/config:/mqtt/config:ro'
-        - '/srv/mqtt/log:/mqtt/log'
-        - '/srv/mqtt/data/:/mqtt/data/'
+    # volumes:
+    #     - '/srv/mqtt/config:/mqtt/config:ro'
+    #     - '/srv/mqtt/log:/mqtt/log'
+    #     - '/srv/mqtt/data/:/mqtt/data/'
     image: toke/mosquitto
 
 volumes:
