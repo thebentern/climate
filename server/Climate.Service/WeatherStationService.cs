@@ -78,7 +78,7 @@ public class WeatherStationService : IHostedService, IDisposable
     AsyncContext.Run(async () => await ReportConditionsWeatherUnderground(payload));
   }
 
-  private  void SetupDisconnection(IMqttClient mqttClient, IMqttClientOptions options)
+  private void SetupDisconnection(IMqttClient mqttClient, IMqttClientOptions options)
   {
     mqttClient.Disconnected += async (s, e) =>
     {
@@ -125,10 +125,14 @@ public class WeatherStationService : IHostedService, IDisposable
   private async Task ReportConditionsWeatherUnderground(string jsonData)
   {
     var report = JsonConvert.DeserializeObject<WeatherStationReport>(jsonData);
-    await TimeoutPolicy.ExecuteAsync(async () =>
+      
+    if (DotNetEnv.Env.GetBool("REPORT_TO_WUNDERGROUND"))
     {
-      await UploadReportWeatherUnderground(report.BuildWeatherStationUrl());
-    });
+      await TimeoutPolicy.ExecuteAsync(async () =>
+      {
+        await UploadReportWeatherUnderground(report.BuildWeatherStationUrl());
+      });
+    }
     await TimeoutPolicy.ExecuteAsync(async () =>
     {
       await RecordInfluxDbMetric(report);

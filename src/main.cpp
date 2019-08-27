@@ -5,9 +5,6 @@
 #include <sensor.h>
 #include <mqtt.h>
 
-// flag to turn on/off debugging
-#define DEBUG false 
-
 #define Serial if(DEBUG)Serial 
 
 // 1 minute
@@ -62,5 +59,10 @@ void setup()
 void loop() 
 {
   connectAndPublish();
-  ESP.deepSleep(DUTY_INTERVAL * 1000);
+  
+  // Only do deep sleep if we're building for deployment
+  if (DEBUG)
+    delay(5000);
+  else
+    ESP.deepSleep(DUTY_INTERVAL * 1000);
 }

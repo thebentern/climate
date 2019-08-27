@@ -33,15 +33,20 @@ void reportConditions(float voltage, float temperatureF, float humidity, float b
   DynamicJsonDocument doc(1024);
 
   JsonObject root = doc.to<JsonObject>();
-  root["voltage"] = voltage;
-  root["temperature"] = temperatureF;
-  root["humidity"] = humidity;
-  root["barometricPressure"] = barometricPressure;
+  if (!isnan(voltage))
+    root["voltage"] = voltage;
+  if (!isnan(temperatureF))
+    root["temperature"] = temperatureF;
+  if (!isnan(humidity))
+    root["humidity"] = humidity;
+  if (!isnan(barometricPressure))
+    root["barometricPressure"] = barometricPressure;
 
   char jsonPayload[1024];
   serializeJson(doc, jsonPayload);
-  bool successful = mqttClient.publish(MQTT_TOPIC_CLIMATE, jsonPayload);
+  bool successful = mqttClient.publish(MQTT_TOPIC_CONDITIONS, jsonPayload);
   Serial.println(jsonPayload);
 
-  shutdownRadio(successful);
+  if (!DEBUG)
+    shutdownRadio(successful);
 }

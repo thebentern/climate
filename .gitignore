@@ -32,6 +32,7 @@
 *.app
 .pioenvs
 .piolibdeps
+.pio
 
 # Secrets
 src/secrets.h
